@@ -126,6 +126,11 @@ public:
   void setDecimalPrecision(int);
   int getDecimalPrecision();
 
+  /// Set/Get whether the decimal representation is fixed or
+  /// scientific.  True is fixed and False is scientific
+  void setFixedRepresentation(bool);
+  bool getFixedRepresentation();
+
   /// set the region (in row indices) that is currently being shown in the view.
   /// the model will provide data-values only for the active-region. For any
   /// other region it will simply return a "..." text for display (in

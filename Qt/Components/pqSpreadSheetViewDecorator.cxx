@@ -102,7 +102,10 @@ pqSpreadSheetViewDecorator::pqSpreadSheetViewDecorator(pqSpreadSheetView* view):
     this->Internal->spinBoxPrecision);
   QObject::connect(this->Internal->spinBoxPrecision, SIGNAL(valueChanged(int)),
     this, SLOT(displayPrecisionChanged(int)));
-    
+
+  QObject::connect(this->Internal->ToggleFixed, SIGNAL(toggled(bool)),
+                   this, SLOT(toggleFixedRepresentation(bool)));
+  
   this->Internal->AttributeDomain = 0;
 
   QObject::connect(&this->Internal->Links, SIGNAL(smPropertyChanged()),
@@ -243,6 +246,12 @@ void pqSpreadSheetViewDecorator::updateColumnVisibility()
       this->Spreadsheet->getViewModel()->setVisible(index, a->isChecked());
       }
     }
+}
+
+//-----------------------------------------------------------------------------
+void pqSpreadSheetViewDecorator::toggleFixedRepresentation(bool fixed)
+{
+  this->Spreadsheet->getViewModel()->setFixedRepresentation(fixed);
 }
 
 //-----------------------------------------------------------------------------

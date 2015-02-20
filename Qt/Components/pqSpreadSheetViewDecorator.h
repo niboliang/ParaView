@@ -58,6 +58,7 @@ protected slots:
   void showToggleColumnPopupMenu();
   void updateColumnVisibility();
   void toggleCellConnectivity();
+  void toggleFixedRepresentation(bool);
   
 protected:
   pqSpreadSheetView* Spreadsheet;
