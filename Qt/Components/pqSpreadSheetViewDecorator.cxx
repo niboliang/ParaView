@@ -134,6 +134,18 @@ pqSpreadSheetViewDecorator::~pqSpreadSheetViewDecorator()
 }
 
 //-----------------------------------------------------------------------------
+void pqSpreadSheetViewDecorator::setPrecision(int p)
+{
+  this->Internal->spinBoxPrecision->setValue(p);
+}
+
+//-----------------------------------------------------------------------------
+void pqSpreadSheetViewDecorator::setFixedRepresentation(bool)
+{
+  this->Internal->ToggleFixed->setChecked(true);
+}
+
+//-----------------------------------------------------------------------------
 void pqSpreadSheetViewDecorator::showing(pqDataRepresentation* repr)
 {
   this->Internal->Links.removeAllPropertyLinks();
