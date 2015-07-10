@@ -85,16 +85,34 @@ class ParaViewWebProtocol(vtk_protocols.vtkWebProtocol):
             print msg
 
     def setBaseDirectory(self, basePath):
+        self.overrideDataDirKey = None
+        self.baseDirectory = ''
+        self.baseDirectoryMap = {}
+        self.multiRoot = False
+
         if basePath.find('|') < 0:
-            self.multiRoot = False
-            self.baseDirectory = basePath
+            if basePath.find('=') >= 0:
+                basePair = basePath.split('=')
+                if os.path.exists(basePair[1]):
+                    self.baseDirectory = basePair[1]
+                    self.overrideDataDirKey = basePair[0]
+            else:
+                self.baseDirectory = basePath
         else:
-            self.multiRoot = True
-            self.baseDirectoryMap = {}
             baseDirs = basePath.split('|')
             for baseDir in baseDirs:
                 basePair = baseDir.split('=')
-                self.baseDirectoryMap[basePair[0]] = basePair[1]
+                if os.path.exists(basePair[1]):
+                    self.baseDirectoryMap[basePair[0]] = basePair[1]
+
+            # Check if we ended up with just a single directory
+            bdKeys = self.baseDirectoryMap.keys()
+            if len(bdKeys) == 1:
+                self.baseDirectory = self.baseDirectoryMap[bdKeys[0]]
+                self.overrideDataDirKey = bdKeys[0]
+                self.baseDirectoryMap = {}
+            elif len(bdKeys) > 1:
+                self.multiRoot = True
 
     def getAbsolutePath(self, relativePath):
         absolutePath = None
@@ -124,10 +142,11 @@ class ParaViewWebMouseHandler(ParaViewWebProtocol):
         """
         view = self.getView(event['view'])
 
-        if event["action"] == 'down':
-            view.UseInteractiveRenderingForScreenshots = 1
-        elif event["action"] == 'up':
-            view.UseInteractiveRenderingForScreenshots = 0
+        if hasattr(view, 'UseInteractiveRenderingForScreenshots'):
+            if event["action"] == 'down':
+                view.UseInteractiveRenderingForScreenshots = 1
+            elif event["action"] == 'up':
+                view.UseInteractiveRenderingForScreenshots = 0
 
         buttons = 0
         if event["buttonLeft"]:
@@ -443,7 +462,23 @@ class ParaViewWebColorManager(ParaViewWebProtocol):
                                                                        rangemax,
                                                                        extend)
 
+        if status['success']:
+            currentRange = self.getCurrentScalarRange(proxyId)
+            status['range'] = currentRange
+
         return status
+
+    # RpcName: getCurrentScalarRange => pv.color.manager.scalar.range.get
+    @exportRpc("pv.color.manager.scalar.range.get")
+    def getCurrentScalarRange(self, proxyId):
+        proxy = self.mapIdToProxy(proxyId)
+        rep = simple.GetRepresentation(proxy)
+
+        lookupTable = rep.LookupTable
+        cMin = lookupTable.RGBPoints[0]
+        cMax = lookupTable.RGBPoints[-4]
+
+        return { 'min': cMin, 'max': cMax }
 
     # RpcName: colorBy => pv.color.manager.color.by
     @exportRpc("pv.color.manager.color.by")
@@ -473,6 +508,46 @@ class ParaViewWebColorManager(ParaViewWebProtocol):
                 vtkSMPVRepresentationProxy.RescaleTransferFunctionToDataRange(repProxy.SMProxy, arrayName, locationMap[arrayLocation], False)
 
         simple.Render()
+
+    # RpcName: setOpacityFunctionPoints => pv.color.manager.opacity.points.set
+    @exportRpc("pv.color.manager.opacity.points.set")
+    def setOpacityFunctionPoints(self, arrayName, pointArray):
+        lutProxy = simple.GetColorTransferFunction(arrayName)
+        pwfProxy = simple.GetOpacityTransferFunction(arrayName)
+
+        # Use whatever the current scalar range is for this array
+        cMin = lutProxy.RGBPoints[0]
+        cMax = lutProxy.RGBPoints[-4]
+
+        # Scale and bias the x values, which come in between 0.0 and 1.0, to the
+        # current scalar range
+        for i in range(len(pointArray) / 4):
+            idx = i * 4
+            x = pointArray[idx]
+            pointArray[idx] = (x * (cMax - cMin)) + cMin
+
+        # Set the Points property to scaled and biased points array
+        pwfProxy.Points = pointArray
+
+        simple.Render()
+
+    # RpcName: setSurfaceOpacity => pv.color.manager.surface.opacity.set
+    @exportRpc("pv.color.manager.surface.opacity.set")
+    def setSurfaceOpacity(self, representation, enabled):
+        repProxy = self.mapIdToProxy(representation)
+        lutProxy = repProxy.LookupTable
+
+        lutProxy.EnableOpacityMapping = enabled
+
+        simple.Render()
+
+    # RpcName: getSurfaceOpacity => pv.color.manager.surface.opacity.get
+    @exportRpc("pv.color.manager.surface.opacity.get")
+    def getSurfaceOpacity(self, representation):
+        repProxy = self.mapIdToProxy(representation)
+        lutProxy = repProxy.LookupTable
+
+        return lutProxy.EnableOpacityMapping
 
     # RpcName: selectColorMap => pv.color.manager.select.preset
     @exportRpc("pv.color.manager.select.preset")
@@ -1270,6 +1345,13 @@ class ParaViewWebProxyManager(ParaViewWebProtocol):
 
         return proxyJson
 
+    @exportRpc("pv.proxy.manager.find.id")
+    def findProxyId(self, groupName, proxyName):
+        proxyMgr = servermanager.ProxyManager()
+        proxy = proxyMgr.GetProxy(groupName, proxyName)
+        proxyId = proxy.SMProxy.GetGlobalIDAsString()
+        return proxyId
+
     @exportRpc("pv.proxy.manager.update")
     def update(self, propertiesList):
         """
@@ -1613,6 +1695,32 @@ class ParaViewWebPipelineManager(ParaViewWebProtocol):
 
 # =============================================================================
 #
+# Key/Value Store Protocol
+#
+# =============================================================================
+
+class ParaViewWebKeyValuePairStore(ParaViewWebProtocol):
+
+    def __init__(self):
+        super(ParaViewWebKeyValuePairStore, self).__init__()
+        self.keyValStore = {}
+
+    # RpcName: storeKeyPair => 'pv.keyvaluepair.store'
+    @exportRpc("pv.keyvaluepair.store")
+    def storeKeyPair(self, key, value):
+        self.keyValStore[key] = value
+
+    # RpcName: retrieveKeyPair => 'pv.keyvaluepair.retrieve'
+    @exportRpc("pv.keyvaluepair.retrieve")
+    def retrieveKeyPair(self, key):
+        if key in self.keyValStore:
+            return self.keyValStore[key]
+        else:
+            return None
+
+
+# =============================================================================
+#
 # Filter list
 #
 # =============================================================================
@@ -1836,7 +1944,7 @@ class ParaViewWebFileListing(ParaViewWebProtocol):
         """
         self.setBaseDirectory(basePath)
 
-        self.rootName = name
+        self.rootName = self.overrideDataDirKey or name
         self.pattern = re.compile(excludeRegex)
         self.gPattern = re.compile(groupRegex)
         pxm = simple.servermanager.ProxyManager()

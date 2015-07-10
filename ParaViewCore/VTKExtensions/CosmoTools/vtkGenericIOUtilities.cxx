@@ -93,9 +93,12 @@ vtkDataArray* GetVtkDataArray(
   dataArray->SetNumberOfComponents(1);
   dataArray->SetNumberOfTuples( N );
   dataArray->SetName(name.c_str());
-  void *dataBuffer = dataArray->GetVoidPointer(0);
-  assert("pre: encountered NULL data buffer!" && (dataBuffer != NULL) );
-  memcpy(dataBuffer,rawBuffer,N*dataSize);
+  if (N > 0)
+    {
+    void *dataBuffer = dataArray->GetVoidPointer(0);
+    assert("pre: encountered NULL data buffer!" && (dataBuffer != NULL) );
+    memcpy(dataBuffer,rawBuffer,N*dataSize);
+    }
   return( dataArray );
 }
 
@@ -143,6 +146,59 @@ double GetDoubleFromRawBuffer(
      {
      float *dataPtr = static_cast<float*>(buffer);
      dataItem = static_cast<double>(dataPtr[buffer_idx]);
+     }
+     break;
+   default:
+     assert("pre: Undefined GENERIC IO type: " && true);
+    } // END switch
+
+  return( dataItem );
+}
+
+//==============================================================================
+vtkIdType GetIdFromRawBuffer(
+      const int type, void* buffer, vtkIdType buffer_idx)
+{
+  assert("pre: cannot read from null buffer!" && (buffer != NULL) );
+
+  vtkIdType dataItem = 0;
+
+  switch( type )
+    {
+   case gio::GENERIC_IO_INT32_TYPE:
+     {
+     int32_t *dataPtr = static_cast<int32_t*>(buffer);
+     dataItem = static_cast<vtkIdType>(dataPtr[buffer_idx]);
+     }
+     break;
+   case gio::GENERIC_IO_INT64_TYPE:
+     {
+     int64_t *dataPtr = static_cast<int64_t*>(buffer);
+     dataItem = static_cast<vtkIdType>(dataPtr[buffer_idx]);
+     }
+     break;
+   case gio::GENERIC_IO_UINT32_TYPE:
+     {
+     uint32_t *dataPtr = static_cast<uint32_t*>(buffer);
+     dataItem = static_cast<vtkIdType>(dataPtr[buffer_idx]);
+     }
+     break;
+   case gio::GENERIC_IO_UINT64_TYPE:
+     {
+     uint64_t *dataPtr = static_cast<uint64_t*>(buffer);
+     dataItem = static_cast<vtkIdType>(dataPtr[buffer_idx]);
+     }
+     break;
+   case gio::GENERIC_IO_DOUBLE_TYPE:
+     {
+     double *dataPtr = static_cast<double*>(buffer);
+     dataItem = static_cast<vtkIdType>(dataPtr[buffer_idx]);
+     }
+     break;
+   case gio::GENERIC_IO_FLOAT_TYPE:
+     {
+     float *dataPtr = static_cast<float*>(buffer);
+     dataItem = static_cast<vtkIdType>(dataPtr[buffer_idx]);
      }
      break;
    default:

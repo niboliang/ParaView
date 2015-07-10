@@ -236,6 +236,7 @@ public:
       if (hasInt)
         {
         property->SetElement(0, enumValue);
+        return true;
         }
       else
         {
@@ -245,28 +246,22 @@ public:
           {
           enumValue = enumDomain->GetEntryValueForText(stringValue.c_str());
           property->SetElement(0, enumValue);
+          return true;
           }
         }
       }
-    else
+    std::vector<int> vector;
+    if (!this->GetSetting(settingName, vector) ||
+      vector.size() != property->GetNumberOfElements())
       {
-      std::vector<int> vector;
-      if (!this->GetSetting(settingName, vector) ||
-          vector.size() != property->GetNumberOfElements())
-        {
-        return false;
-        }
-      else if (property->GetRepeatable())
-        {
-        property->SetNumberOfElements(static_cast<unsigned int>(vector.size()));
-        }
-      else if (vector.size() != property->GetNumberOfElements())
-        {
-        return false;
-        }
-
-      property->SetElements(&vector[0]);
+      return false;
       }
+    if (property->GetRepeatable())
+      {
+      property->SetNumberOfElements(static_cast<unsigned int>(vector.size()));
+      }
+
+    property->SetElements(&vector[0]);
 
     return true;
   }
@@ -1144,7 +1139,18 @@ bool vtkSMSettings::GetProxySettings(vtkSMProxy* proxy)
   std::string jsonPrefix(".");
   jsonPrefix.append(proxy->GetXMLGroup());
 
-  return this->Internal->GetProxySettings(jsonPrefix.c_str(), proxy);
+  return this->GetProxySettings(jsonPrefix.c_str(), proxy);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSMSettings::GetProxySettings(const char* prefix, vtkSMProxy* proxy)
+{
+  if (!proxy)
+    {
+    return false;
+    }
+
+  return this->Internal->GetProxySettings(prefix, proxy);
 }
 
 //----------------------------------------------------------------------------
@@ -1211,6 +1217,12 @@ void vtkSMSettings::SetSetting(const char* settingName, unsigned int index, cons
 void vtkSMSettings::SetProxySettings(vtkSMProxy* proxy)
 {
   this->Internal->SetProxySettings(proxy);
+}
+
+//----------------------------------------------------------------------------
+void vtkSMSettings::SetProxySettings(const char* prefix, vtkSMProxy* proxy)
+{
+  this->Internal->SetProxySettings(prefix, proxy);
 }
 
 //----------------------------------------------------------------------------
