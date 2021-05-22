@@ -1,15 +1,15 @@
 [submodule "VTK"]
 	path = VTK
-	url = git://vtk.org/VTK.git
+	url = https://gitlab.kitware.com/vtk/vtk.git
 [submodule "Utilities/VisItBridge"]
 	path = Utilities/VisItBridge
-	url = git://paraview.org/VisItBridge.git
+	url = https://gitlab.kitware.com/paraview/paraview.git
 [submodule "ThirdParty/IceT/vtkicet"]
 	path = ThirdParty/IceT/vtkicet
-	url = git://paraview.org/IceT.git
+	url = https://gitlab.kitware.com/paraview/paraview.git
 [submodule "ThirdParty/protobuf/vtkprotobuf"]
 	path = ThirdParty/protobuf/vtkprotobuf
-	url = git://public.kitware.com/protobuf.git
+	url =https://gitlab.kitware.com/paraview/paraview.git
 [submodule "ThirdParty/QtTesting/vtkqttesting"]
 	path = ThirdParty/QtTesting/vtkqttesting
-	url = git://paraview.org/QtTesting.git
+	url = https://gitlab.kitware.com/paraview/paraview.git
